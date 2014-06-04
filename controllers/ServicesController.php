@@ -213,6 +213,10 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     }
 
 
+    /**
+     * this action creates user activity
+     * title is mandatory field
+     */
     public function createUserActivityAction()
     {
         $data = $this->getRequestData();
@@ -234,7 +238,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
             $activity->setKey(Pimcore_File::getValidFilename($data['title']));
             $activity->setPublished(true);
             $activity->setParentId($folder->o_id);
-            if(!$activity->save()){
+            if (!$activity->save()) {
                 $activity = null;
             }
         }
@@ -290,6 +294,10 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     }
 
 
+    /**
+     * this action creates user todo
+     * todo_type is mandatory field
+     */
     public function createUserTodoAction()
     {
         $data = $this->getRequestData();
@@ -307,11 +315,11 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
             $todo = new Object_Todo();
             $todo->setCreator($user);
             $todo->setTodo_type($data['todo_type']);
-            $todo->setText(isset($data['text'])?$data['text']:"");
-            $todo->setKey(Pimcore_File::getValidFilename($user->o_key."-".time()));
+            $todo->setText(isset($data['text']) ? $data['text'] : "");
+            $todo->setKey(Pimcore_File::getValidFilename($user->o_key . "-" . time()));
             $todo->setPublished(true);
             $todo->setParentId($folder->o_id);
-            if(!$todo->save()){
+            if (!$todo->save()) {
                 $todo = null;
             }
         }
@@ -367,6 +375,10 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     }
 
 
+    /**
+     * this action creates user operation
+     * title and activity_id is mandatory field
+     */
     public function createUserOperationAction()
     {
         $data = $this->getRequestData();
@@ -382,15 +394,17 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
                 $folder->save();
             }
 
+            //$geo = new Object_Data_Geopoint($data['longtitude'], $data['latitude']);
+
             $operation = new Object_Operation();
             $operation->setCreator($user);
             $operation->setTitle($data['title']);
-            $operation->setExplanation(isset($data['explanation'])?$data['explanation']:"");
+            $operation->setExplanation(isset($data['explanation']) ? $data['explanation'] : "");
             //$operation->setLocation()
-            $operation->setKey(Pimcore_File::getValidFilename($user->o_key."-".time()));
+            $operation->setKey(Pimcore_File::getValidFilename($user->o_key . "-" . $data['title'] . "-" . time()));
             $operation->setPublished(true);
             $operation->setParentId($folder->o_id);
-            if(!$operation->save()){
+            if (!$operation->save()) {
                 $operation = null;
             }
         }
@@ -447,6 +461,47 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
 
 
     /**
+     * this action creates user agenda
+     * topic and title is mandatory field
+     */
+    public function createUserAgendaAction()
+    {
+        $data = $this->getRequestData();
+        $agenda = null;
+        if ($this->getDeviceSession() && isset($data['topic']) && isset($data['title'])) {
+            $user = Object_User::getById($this->getDeviceSession()->getUserId());
+
+            $folder = Object_Folder::getByPath('/agenda/' . $user->o_key . "-agenda");
+            if (!$folder) {
+                $folder = new Object_Folder();
+                $folder->setKey($user->o_key . "-agenda");
+                $folder->setParentId(51);
+                $folder->save();
+            }
+            $agenda = new Object_Agenda();
+            $agenda->setCreator($user);
+            $agenda->setTopic($data['topic']);
+            $agenda->setTitle($data['title']);
+            $agenda->setNotes(isset($data['notes']) ? $data['notes'] : "");
+            $agenda->setStart_time(isset($data['start_time']) ? $data['start_time'] : "");
+            $agenda->setEnd_time(isset($data['end_time']) ? $data['end_time'] : "");
+            $agenda->setWith_whom(isset($data['with_whom']) ? $data['with_whom'] : "");
+            $agenda->setLocation(isset($data['location']) ? $data['location'] : "");
+            $agenda->setAlarm(isset($data['alarm']) ? $data['alarm'] : "");
+            $agenda->setRepeat_days(isset($data['repeat_days']) ? $data['repeat_days'] : array());
+            $agenda->setKey(Pimcore_File::getValidFilename($user->o_key . "-" . $data['title'] . "-" . time()));
+            $agenda->setPublished(true);
+            $agenda->setParentId($folder->o_id);
+            if (!$agenda->save()) {
+                $agenda = null;
+            }
+        }
+
+        $this->_helper->json($agenda);
+    }
+
+
+    /**
      * get list of user peoples
      */
     public function getUserPeoplesAction()
@@ -490,5 +545,42 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
             }
         }
         $this->_helper->json($response);
+    }
+
+
+    /**
+     * this action creates user people
+     * name is mandatory field
+     */
+    public function createUserPeopleAction()
+    {
+        $data = $this->getRequestData();
+        $people = null;
+        if ($this->getDeviceSession() && isset($data['name'])) {
+            $user = Object_User::getById($this->getDeviceSession()->getUserId());
+
+            $folder = Object_Folder::getByPath('/peoples/' . $user->o_key . "-people");
+            if (!$folder) {
+                $folder = new Object_Folder();
+                $folder->setKey($user->o_key . "-people");
+                $folder->setParentId(52);
+                $folder->save();
+            }
+            $people = new Object_People();
+            $people->setCreator($user);
+            $people->setName($data['name']);
+            $people->setCompany(isset($data['company']) ? $data['company'] : "");
+            $people->setPhone(isset($data['phone']) ? $data['phone'] : "");
+            $people->setEmail(isset($data['email']) ? $data['email'] : "");
+
+            $people->setKey(Pimcore_File::getValidFilename($user->o_key . "-" . $data['name'] . "-" . time()));
+            $people->setPublished(true);
+            $people->setParentId($folder->o_id);
+            if (!$people->save()) {
+                $people = null;
+            }
+        }
+
+        $this->_helper->json($people);
     }
 }
