@@ -61,9 +61,11 @@ class Workapp_Session_Resource extends Pimcore_Model_Resource_Abstract
 
         $data = $this->db->fetchRow('SELECT * FROM ' . $this->tableName . ' WHERE device_uid LIKE ?', $this->model->getDeviceUid());
 
-        if (!$data["id"])
+        if (!$data["id"]) {
             throw new Zend_Exception("Session with the device_id " . $this->model->getDeviceUid() . " doesn't exists");
-
+            var_dump($data);
+            exit;
+        }
 
         $this->assignVariablesToModel($data);
     }

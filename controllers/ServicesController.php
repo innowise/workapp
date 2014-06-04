@@ -148,4 +148,347 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
 
         $this->_helper->json($user);
     }
+
+
+    /**
+     * get list of user activities
+     * getoperations optional field for loading relative operations
+     */
+    public function getUserActivitiesAction()
+    {
+        $getoperations = false;
+        $activity = new Workapp_Activity();
+        $session = $this->getDeviceSession();
+        $user_id = $session ? $session->getUserId() : 0;
+        $data = $this->getRequestData();
+        if (isset($data['getoperations'])) {
+            $getoperations = $data['getoperations'];
+        }
+
+        $activities = $activity->getActivityList(array('user_id' => $user_id, 'getoperations' => $getoperations));
+        $this->_helper->json($activities);
+    }
+
+
+    /**
+     * returns user activity by activity_id
+     * activity_id mandatory field
+     */
+    public function getUserActivityByIdAction()
+    {
+        $data = $this->getRequestData();
+        $activity = Object_Activity::getById($data['activity_id']);
+        if (!$this->getDeviceSession() || !$activity || $this->getDeviceSession()->getUserId() != $activity->Creator->o_id) {
+            $activity = null;
+        }
+        $this->_helper->json($activity);
+    }
+
+
+    /**
+     * delete user activity with relative operations
+     * activity_id mandatory field
+     */
+    public function deleteUserActivityAction()
+    {
+        $response['response'] = false;
+        $data = $this->getRequestData();
+        $activity = Object_Activity::getById($data['activity_id']);
+
+        if ($this->getDeviceSession() && $activity && $this->getDeviceSession()->getUserId() == $activity->Creator->o_id) {
+            $activity->o_published = false;
+            if ($activity->save()) {
+                $operations = new Workapp_Activity();
+                $op = $operations->getActivityRequiredByOperations($activity);
+                foreach ($op as $operation) {
+                    $operation = Object_Operation::getById($operation->o_id);
+                    $operation->o_published = false;
+                    if ($operation->save()) {
+                        $response['response'] = true;
+                    }
+                }
+            }
+        }
+        $this->_helper->json($response);
+    }
+
+
+    public function createUserActivityAction()
+    {
+        $data = $this->getRequestData();
+        $activity = null;
+        if ($this->getDeviceSession() && isset($data['title'])) {
+            $user = Object_User::getById($this->getDeviceSession()->getUserId());
+
+            $folder = Object_Folder::getByPath('/activities/' . $user->o_key . "-activities");
+            if (!$folder) {
+                $folder = new Object_Folder();
+                $folder->setKey($user->o_key . "-activities");
+                $folder->setParentId(3);
+                $folder->save();
+            }
+
+            $activity = new Object_Activity();
+            $activity->setCreator($user);
+            $activity->setTitle($data['title']);
+            $activity->setKey(Pimcore_File::getValidFilename($data['title']));
+            $activity->setPublished(true);
+            $activity->setParentId($folder->o_id);
+            if(!$activity->save()){
+                $activity = null;
+            }
+        }
+
+        $this->_helper->json($activity);
+    }
+
+
+    /**
+     * get list of user todos
+     */
+    public function getUserTodosAction()
+    {
+        $todo = new Workapp_Todo();
+        $session = $this->getDeviceSession();
+        $user_id = $session ? $session->getUserId() : 0;
+        $todos = $todo->getTodoList(array('user_id' => $user_id));
+        $this->_helper->json($todos);
+    }
+
+
+    /**
+     * returns user tod by todo_id
+     * todo_id mandatory field
+     */
+    public function getUserTodoByIdAction()
+    {
+        $data = $this->getRequestData();
+        $todo = Object_Todo::getById($data['todo_id']);
+        if (!$this->getDeviceSession() || !$todo || $this->getDeviceSession()->getUserId() != $todo->Creator->o_id) {
+            $todo = null;
+        }
+        $this->_helper->json($todo);
+    }
+
+
+    /**
+     * delete user todos by todo_id
+     * todo_id mandatory field
+     */
+    public function deleteUserTodoAction()
+    {
+        $response['response'] = false;
+        $data = $this->getRequestData();
+        $todo = Object_Todo::getById($data['todo_id']);
+        if ($this->getDeviceSession() && $todo && $this->getDeviceSession()->getUserId() == $todo->Creator->o_id) {
+            $todo->o_published = false;
+            if ($todo->save()) {
+                $response['response'] = true;
+            }
+        }
+        $this->_helper->json($response);
+    }
+
+
+    public function createUserTodoAction()
+    {
+        $data = $this->getRequestData();
+        $todo = null;
+        if ($this->getDeviceSession() && isset($data['todo_type'])) {
+            $user = Object_User::getById($this->getDeviceSession()->getUserId());
+
+            $folder = Object_Folder::getByPath('/todo/' . $user->o_key . "-todo");
+            if (!$folder) {
+                $folder = new Object_Folder();
+                $folder->setKey($user->o_key . "-todo");
+                $folder->setParentId(30);
+                $folder->save();
+            }
+            $todo = new Object_Todo();
+            $todo->setCreator($user);
+            $todo->setTodo_type($data['todo_type']);
+            $todo->setText(isset($data['text'])?$data['text']:"");
+            $todo->setKey(Pimcore_File::getValidFilename($user->o_key."-".time()));
+            $todo->setPublished(true);
+            $todo->setParentId($folder->o_id);
+            if(!$todo->save()){
+                $todo = null;
+            }
+        }
+
+        $this->_helper->json($todo);
+    }
+
+
+    /**
+     * get list of user operations
+     */
+    public function getUserOperationsAction()
+    {
+        $operation = new Workapp_Operation();
+        $session = $this->getDeviceSession();
+        $user_id = $session ? $session->getUserId() : 0;
+        $operations = $operation->getOperationList(array('user_id' => $user_id));
+        $this->_helper->json($operations);
+    }
+
+
+    /**
+     * returns user operation by operation_id
+     * operation_id mandatory field
+     */
+    public function getUserOperationByIdAction()
+    {
+        $data = $this->getRequestData();
+        $operation = Object_Operation::getById($data['operation_id']);
+        if (!$this->getDeviceSession() || !$operation || $this->getDeviceSession()->getUserId() != $operation->Creator->o_id) {
+            $operation = null;
+        }
+        $this->_helper->json($operation);
+    }
+
+
+    /**
+     * delete user operation by operation_id
+     * operation_id mandatory field
+     */
+    public function deleteUserOperationAction()
+    {
+        $response['response'] = false;
+        $data = $this->getRequestData();
+        $operation = Object_Operation::getById($data['operation_id']);
+        if ($this->getDeviceSession() && $operation && $this->getDeviceSession()->getUserId() == $operation->Creator->o_id) {
+            $operation->o_published = false;
+            if ($operation->save()) {
+                $response['response'] = true;
+            }
+        }
+        $this->_helper->json($response);
+    }
+
+
+    public function createUserOperationAction()
+    {
+        $data = $this->getRequestData();
+        $operation = null;
+        if ($this->getDeviceSession() && isset($data['title']) && isset($data['activity_id'])) {
+            $user = Object_User::getById($this->getDeviceSession()->getUserId());
+
+            $folder = Object_Folder::getByPath('/operations/' . $user->o_key . "-operations");
+            if (!$folder) {
+                $folder = new Object_Folder();
+                $folder->setKey($user->o_key . "-operations");
+                $folder->setParentId(4);
+                $folder->save();
+            }
+
+            $operation = new Object_Operation();
+            $operation->setCreator($user);
+            $operation->setTitle($data['title']);
+            $operation->setExplanation(isset($data['explanation'])?$data['explanation']:"");
+            $operation->setLocation()
+            $operation->setKey(Pimcore_File::getValidFilename($user->o_key."-".time()));
+            $operation->setPublished(true);
+            $operation->setParentId($folder->o_id);
+            if(!$operation->save()){
+                $operation = null;
+            }
+        }
+
+        $this->_helper->json($operation);
+    }
+
+
+    /**
+     * get list of user agendas
+     */
+    public function getUserAgendasAction()
+    {
+        $agenda = new Workapp_Agenda();
+        $session = $this->getDeviceSession();
+        $user_id = $session ? $session->getUserId() : 0;
+        $agendas = $agenda->getAgendaList(array('user_id' => $user_id));
+        $this->_helper->json($agendas);
+    }
+
+
+    /**
+     * returns user agenda by agenda_id
+     * agenda_id mandatory field
+     */
+    public function getUserAgendaByIdAction()
+    {
+        $data = $this->getRequestData();
+        $agenda = Object_Agenda::getById($data['agenda_id']);
+        if (!$this->getDeviceSession() || !$agenda || $this->getDeviceSession()->getUserId() != $agenda->Creator->o_id) {
+            $agenda = null;
+        }
+        $this->_helper->json($agenda);
+    }
+
+
+    /**
+     * delete user agenda by agenda_id
+     * agenda_id mandatory field
+     */
+    public function deleteUserAgendaAction()
+    {
+        $response['response'] = false;
+        $data = $this->getRequestData();
+        $agenda = Object_Agenda::getById($data['agenda_id']);
+        if ($this->getDeviceSession() && $agenda && $this->getDeviceSession()->getUserId() == $agenda->Creator->o_id) {
+            $agenda->o_published = false;
+            if ($agenda->save()) {
+                $response['response'] = true;
+            }
+        }
+        $this->_helper->json($response);
+    }
+
+
+    /**
+     * get list of user peoples
+     */
+    public function getUserPeoplesAction()
+    {
+        $people = new Workapp_People();
+        $session = $this->getDeviceSession();
+        $user_id = $session ? $session->getUserId() : 0;
+        $peoples = $people->getPeopleList(array('user_id' => $user_id));
+        $this->_helper->json($peoples);
+    }
+
+
+    /**
+     * returns user people by people_id
+     * people_id mandatory field
+     */
+    public function getUserPeopleByIdAction()
+    {
+        $data = $this->getRequestData();
+        $people = Object_People::getById($data['people_id']);
+        if (!$this->getDeviceSession() || !$people || $this->getDeviceSession()->getUserId() != $people->Creator->o_id) {
+            $people = null;
+        }
+        $this->_helper->json($people);
+    }
+
+
+    /**
+     * delete user people by people_id
+     * people_id mandatory field
+     */
+    public function deleteUserPeopleAction()
+    {
+        $response['response'] = false;
+        $data = $this->getRequestData();
+        $people = Object_People::getById($data['people_id']);
+        if ($this->getDeviceSession() && $people && $this->getDeviceSession()->getUserId() == $people->Creator->o_id) {
+            $people->o_published = false;
+            if ($people->save()) {
+                $response['response'] = true;
+            }
+        }
+        $this->_helper->json($response);
+    }
 }
