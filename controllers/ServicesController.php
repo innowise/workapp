@@ -386,7 +386,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
             $operation->setCreator($user);
             $operation->setTitle($data['title']);
             $operation->setExplanation(isset($data['explanation'])?$data['explanation']:"");
-            $operation->setLocation()
+            //$operation->setLocation()
             $operation->setKey(Pimcore_File::getValidFilename($user->o_key."-".time()));
             $operation->setPublished(true);
             $operation->setParentId($folder->o_id);
