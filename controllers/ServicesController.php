@@ -419,7 +419,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
                 }
             }
         } else {
-            $todo = array('message' => 'activity_id is mandatory field for this request!');
+            $todo = array('message' => 'todo_id is mandatory field for this request!');
         }
 
         $this->_helper->json($todo);
@@ -540,7 +540,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
             if (!$operation) {
                 $operation = array('message' => 'no Operation with this operation_id!');
             } elseif ($this->getDeviceSession()->getUserId() != $operation->Creator->o_id) {
-                $operation = array('message' => 'you have no rights to change this Todo!');
+                $operation = array('message' => 'you have no rights to change this Operation!');
             } else {
                 if (isset($data['title'])) {
                     $operation->Title = $data['title'];
