@@ -78,6 +78,10 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
         $session = Workapp_Session::getByDeviceUid($data['device_uid']);
         if ($session) {
             $session->registerAction($_SERVER['REMOTE_ADDR']);
+        } else {
+            $this->_helper->json(array(
+                'message' => 'This device has no running session'
+            ));
         }
 
         $this->session = $session;
@@ -158,15 +162,12 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     {
         $getoperations = false;
         $activity = new Workapp_Activity();
-        $session = $this->getDeviceSession();
-        $user_id = $session ? $session->getUserId() : 0;
         $data = $this->getRequestData();
         if (isset($data['getoperations'])) {
             $getoperations = $data['getoperations'];
         }
 
-        $activities = $activity->getActivityList(array('user_id' => $user_id, 'getoperations' => $getoperations));
-        $this->_helper->json($activities);
+        $this->_helper->json($activity->getActivityList(array('user_id' => $this->getDeviceSession()->getUserId(), 'getoperations' => $getoperations)));
     }
 
 
@@ -177,10 +178,17 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     public function getUserActivityByIdAction()
     {
         $data = $this->getRequestData();
-        $activity = Object_Activity::getById($data['activity_id']);
-        if (!$this->getDeviceSession() || !$activity || $this->getDeviceSession()->getUserId() != $activity->Creator->o_id) {
-            $activity = null;
+        if (isset($data['activity_id'])) {
+            $activity = Object_Activity::getById($data['activity_id']);
+            if (!$activity) {
+                $activity = array('message' => 'no Activity with this activity_id!');
+            } elseif ($this->getDeviceSession()->getUserId() != $activity->Creator->o_id) {
+                $activity = array('message' => 'no Activity for this user with current activity_id!');
+            }
+        } else {
+            $activity = array('message' => 'activity_id is mandatory field for this request!');
         }
+
         $this->_helper->json($activity);
     }
 
@@ -191,23 +199,31 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
      */
     public function deleteUserActivityAction()
     {
-        $response['response'] = false;
+        $response['deleted'] = false;
         $data = $this->getRequestData();
-        $activity = Object_Activity::getById($data['activity_id']);
-
-        if ($this->getDeviceSession() && $activity && $this->getDeviceSession()->getUserId() == $activity->Creator->o_id) {
-            $activity->o_published = false;
-            if ($activity->save()) {
-                $operations = new Workapp_Activity();
-                $op = $operations->getActivityRequiredByOperations($activity);
-                foreach ($op as $operation) {
-                    $operation = Object_Operation::getById($operation->o_id);
-                    $operation->o_published = false;
-                    if ($operation->save()) {
-                        $response['response'] = true;
+        if (isset($data['activity_id'])) {
+            $activity = Object_Activity::getById($data['activity_id']);
+            if (!$activity) {
+                $response = array('message' => 'no Activity with this activity_id!');
+            } elseif ($this->getDeviceSession()->getUserId() == $activity->Creator->o_id) {
+                $activity->o_published = false;
+                if ($activity->save()) {
+                    $response['deleted'] = true;
+                    $operations = new Workapp_Activity();
+                    $op = $operations->getActivityRequiredByOperations($activity);
+                    foreach ($op as $operation) {
+                        $operation = Object_Operation::getById($operation->o_id);
+                        $operation->o_published = false;
+                        if (!$operation->save()) {
+                            $response['deleted'] = false;
+                        }
                     }
                 }
+            } else {
+                $response = array('message' => 'no Activity for this user with current activity_id!');
             }
+        } else {
+            $response = array('message' => 'activity_id is mandatory field for this request!');
         }
         $this->_helper->json($response);
     }
@@ -216,12 +232,12 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     /**
      * this action creates user activity
      * title is mandatory field
+     * photo is optional field
      */
     public function createUserActivityAction()
     {
         $data = $this->getRequestData();
-        $activity = null;
-        if ($this->getDeviceSession() && isset($data['title'])) {
+        if (isset($data['title'])) {
             $user = Object_User::getById($this->getDeviceSession()->getUserId());
 
             $folder = Object_Folder::getByPath('/activities/' . $user->o_key . "-activities");
@@ -235,12 +251,15 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
             $activity = new Object_Activity();
             $activity->setCreator($user);
             $activity->setTitle($data['title']);
-            $activity->setKey(Pimcore_File::getValidFilename($data['title']));
+            $activity->setPhoto(isset($data['photo']) ? Asset_Image::getById($data['photo']) : "");
+            $activity->setKey(Pimcore_File::getValidFilename($user->o_key . "-" . $data['title'] . "-" . time()));
             $activity->setPublished(true);
             $activity->setParentId($folder->o_id);
             if (!$activity->save()) {
-                $activity = null;
+                $activity = array('message' => 'cannot save Activity object');
             }
+        } else {
+            $activity = array('message' => 'title is mandatory field for this request!');
         }
 
         $this->_helper->json($activity);
@@ -253,10 +272,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     public function getUserTodosAction()
     {
         $todo = new Workapp_Todo();
-        $session = $this->getDeviceSession();
-        $user_id = $session ? $session->getUserId() : 0;
-        $todos = $todo->getTodoList(array('user_id' => $user_id));
-        $this->_helper->json($todos);
+        $this->_helper->json($todo->getTodoList(array('user_id' => $this->getDeviceSession()->getUserId())));
     }
 
 
@@ -267,9 +283,15 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     public function getUserTodoByIdAction()
     {
         $data = $this->getRequestData();
-        $todo = Object_Todo::getById($data['todo_id']);
-        if (!$this->getDeviceSession() || !$todo || $this->getDeviceSession()->getUserId() != $todo->Creator->o_id) {
-            $todo = null;
+        if (isset($data['todo_id'])) {
+            $todo = Object_Todo::getById($data['todo_id']);
+            if (!$todo) {
+                $todo = array('message' => 'no Todo with this todo_id!');
+            } elseif ($this->getDeviceSession()->getUserId() != $todo->Creator->o_id) {
+                $todo = array('message' => 'no Todo for this user with current todo_id!');
+            }
+        } else {
+            $todo = array('message' => 'todo_id is mandatory field for this request!');
         }
         $this->_helper->json($todo);
     }
@@ -281,28 +303,36 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
      */
     public function deleteUserTodoAction()
     {
-        $response['response'] = false;
+        $response['deleted'] = false;
         $data = $this->getRequestData();
-        $todo = Object_Todo::getById($data['todo_id']);
-        if ($this->getDeviceSession() && $todo && $this->getDeviceSession()->getUserId() == $todo->Creator->o_id) {
-            $todo->o_published = false;
-            if ($todo->save()) {
-                $response['response'] = true;
+        if (isset($data['todo_id'])) {
+            $todo = Object_Todo::getById($data['todo_id']);
+            if (!$todo) {
+                $response = array('message' => 'no Todo with this todo_id!');
+            } elseif ($this->getDeviceSession()->getUserId() == $todo->Creator->o_id) {
+                $todo->o_published = false;
+                if ($todo->save()) {
+                    $response['deleted'] = true;
+                }
+            } else {
+                $response = array('message' => 'no Todo for this user with current todo_id!');
             }
+        } else {
+            $response = array('message' => 'todo_id is mandatory field for this request!');
         }
         $this->_helper->json($response);
     }
 
 
     /**
-     * this action creates user todo
+     * this action creates user todos
      * todo_type is mandatory field
+     * text is optional field
      */
     public function createUserTodoAction()
     {
         $data = $this->getRequestData();
-        $todo = null;
-        if ($this->getDeviceSession() && isset($data['todo_type'])) {
+        if (isset($data['todo_type'])) {
             $user = Object_User::getById($this->getDeviceSession()->getUserId());
 
             $folder = Object_Folder::getByPath('/todo/' . $user->o_key . "-todo");
@@ -320,8 +350,10 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
             $todo->setPublished(true);
             $todo->setParentId($folder->o_id);
             if (!$todo->save()) {
-                $todo = null;
+                $todo = array('message' => 'cannot save Todo object!');
             }
+        } else {
+            $todo = array('message' => 'todo_type is mandatory field for this request!');
         }
 
         $this->_helper->json($todo);
@@ -334,10 +366,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     public function getUserOperationsAction()
     {
         $operation = new Workapp_Operation();
-        $session = $this->getDeviceSession();
-        $user_id = $session ? $session->getUserId() : 0;
-        $operations = $operation->getOperationList(array('user_id' => $user_id));
-        $this->_helper->json($operations);
+        $this->_helper->json($operation->getOperationList(array('user_id' => $this->getDeviceSession()->getUserId())));
     }
 
 
@@ -348,9 +377,15 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     public function getUserOperationByIdAction()
     {
         $data = $this->getRequestData();
-        $operation = Object_Operation::getById($data['operation_id']);
-        if (!$this->getDeviceSession() || !$operation || $this->getDeviceSession()->getUserId() != $operation->Creator->o_id) {
-            $operation = null;
+        if (isset($data['operation_id'])) {
+            $operation = Object_Operation::getById($data['operation_id']);
+            if (!$operation) {
+                $operation = array('message' => 'no Operation with this operation_id!');
+            } elseif ($this->getDeviceSession()->getUserId() != $operation->Creator->o_id) {
+                $operation = array('message' => 'no Operation for this user with current operation_id!');
+            }
+        } else {
+            $operation = array('message' => 'operation_id is mandatory field for this request!');
         }
         $this->_helper->json($operation);
     }
@@ -362,14 +397,22 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
      */
     public function deleteUserOperationAction()
     {
-        $response['response'] = false;
+        $response['deleted'] = false;
         $data = $this->getRequestData();
-        $operation = Object_Operation::getById($data['operation_id']);
-        if ($this->getDeviceSession() && $operation && $this->getDeviceSession()->getUserId() == $operation->Creator->o_id) {
-            $operation->o_published = false;
-            if ($operation->save()) {
-                $response['response'] = true;
+        if (isset($data['operation_id'])) {
+            $operation = Object_Operation::getById($data['operation_id']);
+            if (!$operation) {
+                $response = array('message' => 'no Operation with this operation_id!');
+            } elseif ($this->getDeviceSession()->getUserId() == $operation->Creator->o_id) {
+                $operation->o_published = false;
+                if ($operation->save()) {
+                    $response['deleted'] = true;
+                }
+            } else {
+                $response = array('message' => 'no Operation for this user with current operation_id!');
             }
+        } else {
+            $response = array('message' => 'operation_id is mandatory field for this request!');
         }
         $this->_helper->json($response);
     }
@@ -378,12 +421,12 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     /**
      * this action creates user operation
      * title and activity_id is mandatory field
+     * explanation, photo, video, latitude, longtitude is optional field
      */
     public function createUserOperationAction()
     {
         $data = $this->getRequestData();
-        $operation = null;
-        if ($this->getDeviceSession() && isset($data['title']) && isset($data['activity_id'])) {
+        if (isset($data['title']) && isset($data['activity_id'])) {
             $user = Object_User::getById($this->getDeviceSession()->getUserId());
 
             $folder = Object_Folder::getByPath('/operations/' . $user->o_key . "-operations");
@@ -394,19 +437,24 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
                 $folder->save();
             }
 
-            //$geo = new Object_Data_Geopoint($data['longtitude'], $data['latitude']);
+            $geo = new Object_Data_Geopoint($data['longtitude'], $data['latitude']);
 
             $operation = new Object_Operation();
             $operation->setCreator($user);
             $operation->setTitle($data['title']);
             $operation->setExplanation(isset($data['explanation']) ? $data['explanation'] : "");
-            //$operation->setLocation()
+            $operation->setLocation($geo);
+            $operation->setPhoto(isset($data['photo']) ? Asset_Image::getById($data['photo']) : "");
+            $operation->setVideo(isset($data['video']) ? Asset_Video::getById($data['video']) : "");
+            $operation->setActivity(Object_Activity::getById($data['activity_id']));
             $operation->setKey(Pimcore_File::getValidFilename($user->o_key . "-" . $data['title'] . "-" . time()));
             $operation->setPublished(true);
             $operation->setParentId($folder->o_id);
             if (!$operation->save()) {
-                $operation = null;
+                $operation = array('message' => 'cannot save Operation object');
             }
+        } else {
+            $operation = array('message' => 'title and activity_id is mandatory field for this request!');
         }
 
         $this->_helper->json($operation);
@@ -419,10 +467,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     public function getUserAgendasAction()
     {
         $agenda = new Workapp_Agenda();
-        $session = $this->getDeviceSession();
-        $user_id = $session ? $session->getUserId() : 0;
-        $agendas = $agenda->getAgendaList(array('user_id' => $user_id));
-        $this->_helper->json($agendas);
+        $this->_helper->json($agenda->getAgendaList(array('user_id' => $this->getDeviceSession()->getUserId())));
     }
 
 
@@ -433,9 +478,16 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     public function getUserAgendaByIdAction()
     {
         $data = $this->getRequestData();
-        $agenda = Object_Agenda::getById($data['agenda_id']);
-        if (!$this->getDeviceSession() || !$agenda || $this->getDeviceSession()->getUserId() != $agenda->Creator->o_id) {
-            $agenda = null;
+        if (isset($data['agenda_id'])) {
+
+            $agenda = Object_Agenda::getById($data['agenda_id']);
+            if (!$agenda) {
+                $agenda = array('message' => 'no Agenda with this agenda_id!');
+            } elseif ($this->getDeviceSession()->getUserId() != $agenda->Creator->o_id) {
+                $agenda = array('message' => 'no Agenda for this user with current agenda_id!');
+            }
+        } else {
+            $agenda = array('message' => 'agenda_id is mandatory field for this request!');
         }
         $this->_helper->json($agenda);
     }
@@ -447,14 +499,22 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
      */
     public function deleteUserAgendaAction()
     {
-        $response['response'] = false;
+        $response['deleted'] = false;
         $data = $this->getRequestData();
-        $agenda = Object_Agenda::getById($data['agenda_id']);
-        if ($this->getDeviceSession() && $agenda && $this->getDeviceSession()->getUserId() == $agenda->Creator->o_id) {
-            $agenda->o_published = false;
-            if ($agenda->save()) {
-                $response['response'] = true;
+        if (isset($data['agenda_id'])) {
+            $agenda = Object_Agenda::getById($data['agenda_id']);
+            if (!$agenda) {
+                $response = array('message' => 'no Agenda with this agenda_id!');
+            } elseif ($this->getDeviceSession()->getUserId() == $agenda->Creator->o_id) {
+                $agenda->o_published = false;
+                if ($agenda->save()) {
+                    $response['deleted'] = true;
+                }
+            } else {
+                $response = array('message' => 'no Agenda for this user with current agenda_id!');
             }
+        } else {
+            $response = array('message' => 'agenda_id is mandatory field for this request!');
         }
         $this->_helper->json($response);
     }
@@ -463,12 +523,12 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     /**
      * this action creates user agenda
      * topic and title is mandatory field
+     * notes, start_time, end_time, with_whom, people, location, alarm, repeat_days is optional field
      */
     public function createUserAgendaAction()
     {
         $data = $this->getRequestData();
-        $agenda = null;
-        if ($this->getDeviceSession() && isset($data['topic']) && isset($data['title'])) {
+        if (isset($data['topic']) && isset($data['title'])) {
             $user = Object_User::getById($this->getDeviceSession()->getUserId());
 
             $folder = Object_Folder::getByPath('/agenda/' . $user->o_key . "-agenda");
@@ -486,6 +546,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
             $agenda->setStart_time(isset($data['start_time']) ? $data['start_time'] : "");
             $agenda->setEnd_time(isset($data['end_time']) ? $data['end_time'] : "");
             $agenda->setWith_whom(isset($data['with_whom']) ? $data['with_whom'] : "");
+            $agenda->setWith_people(isset($data['people']) ? Object_People::getById($data['people']) : "");
             $agenda->setLocation(isset($data['location']) ? $data['location'] : "");
             $agenda->setAlarm(isset($data['alarm']) ? $data['alarm'] : "");
             $agenda->setRepeat_days(isset($data['repeat_days']) ? $data['repeat_days'] : array());
@@ -493,8 +554,10 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
             $agenda->setPublished(true);
             $agenda->setParentId($folder->o_id);
             if (!$agenda->save()) {
-                $agenda = null;
+                $agenda = array('message' => 'cannot save Agenda object');
             }
+        } else {
+            $agenda = array('message' => 'topic and title is mandatory field for this request!');
         }
 
         $this->_helper->json($agenda);
@@ -507,10 +570,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     public function getUserPeoplesAction()
     {
         $people = new Workapp_People();
-        $session = $this->getDeviceSession();
-        $user_id = $session ? $session->getUserId() : 0;
-        $peoples = $people->getPeopleList(array('user_id' => $user_id));
-        $this->_helper->json($peoples);
+        $this->_helper->json($people->getPeopleList(array('user_id' => $this->getDeviceSession()->getUserId())));
     }
 
 
@@ -521,10 +581,15 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     public function getUserPeopleByIdAction()
     {
         $data = $this->getRequestData();
-        $people = Object_People::getById($data['people_id']);
-        if (!$this->getDeviceSession() || !$people || $this->getDeviceSession()->getUserId() != $people->Creator->o_id) {
-            $people = null;
+        if (isset($data['people_id'])) {
+            $people = Object_People::getById($data['people_id']);
+            if (!$people) {
+                $people = array('message' => 'no People with this people_id!');
+            } elseif ($this->getDeviceSession()->getUserId() != $people->Creator->o_id) {
+                $people = array('message' => 'no People for this user with current people_id!');
+            }
         }
+
         $this->_helper->json($people);
     }
 
@@ -535,14 +600,22 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
      */
     public function deleteUserPeopleAction()
     {
-        $response['response'] = false;
+        $response['deleted'] = false;
         $data = $this->getRequestData();
-        $people = Object_People::getById($data['people_id']);
-        if ($this->getDeviceSession() && $people && $this->getDeviceSession()->getUserId() == $people->Creator->o_id) {
-            $people->o_published = false;
-            if ($people->save()) {
-                $response['response'] = true;
+        if ($data['people_id']) {
+            $people = Object_People::getById($data['people_id']);
+            if (!$people) {
+                $response = array('message' => 'no People with this people_id!');
+            } elseif ($this->getDeviceSession()->getUserId() == $people->Creator->o_id) {
+                $people->o_published = false;
+                if ($people->save()) {
+                    $response['deleted'] = true;
+                }
+            } else {
+                $response = array('message' => 'no People for this user with current people_id!');
             }
+        } else {
+            $response = array('message' => 'people_id is mandatory field for this request!');
         }
         $this->_helper->json($response);
     }
@@ -551,12 +624,12 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     /**
      * this action creates user people
      * name is mandatory field
+     * company, phone, email, image is optional field
      */
     public function createUserPeopleAction()
     {
         $data = $this->getRequestData();
-        $people = null;
-        if ($this->getDeviceSession() && isset($data['name'])) {
+        if (isset($data['name'])) {
             $user = Object_User::getById($this->getDeviceSession()->getUserId());
 
             $folder = Object_Folder::getByPath('/peoples/' . $user->o_key . "-people");
@@ -572,13 +645,15 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
             $people->setCompany(isset($data['company']) ? $data['company'] : "");
             $people->setPhone(isset($data['phone']) ? $data['phone'] : "");
             $people->setEmail(isset($data['email']) ? $data['email'] : "");
-
+            $people->setImage(isset($data['image']) ? Asset_Image::getById($data['image']) : "");
             $people->setKey(Pimcore_File::getValidFilename($user->o_key . "-" . $data['name'] . "-" . time()));
             $people->setPublished(true);
             $people->setParentId($folder->o_id);
             if (!$people->save()) {
-                $people = null;
+                $people = array('message' => 'cannot save People object');
             }
+        } else {
+            $people = array('message' => 'name is mandatory field for this request!');
         }
 
         $this->_helper->json($people);
