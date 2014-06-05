@@ -267,6 +267,39 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
 
 
     /**
+     * this action updates user activity by activity_id
+     * title is mandatory field
+     * photo is optional field
+     */
+    public function updateUserActivityAction()
+    {
+        $data = $this->getRequestData();
+        if (isset($data['activity_id'])) {
+            $activity = Object_Activity::getById($data['activity_id']);
+            if (!$activity) {
+                $activity = array('message' => 'no Activity with this activity_id!');
+            } elseif ($this->getDeviceSession()->getUserId() != $activity->Creator->o_id) {
+                $activity = array('message' => 'you have no rights to change this Activity!');
+            } else {
+                if (isset($data['title'])) {
+                    $activity->Title = $data['title'];
+                }
+                if (isset($data['photo'])) {
+                    $activity->Photo = Asset_Image::getById($data['photo']);
+                }
+                if (!$activity->save()) {
+                    $activity = array('message' => 'cannot update Activity object');
+                }
+            }
+        } else {
+            $activity = array('message' => 'activity_id is mandatory field for this request!');
+        }
+
+        $this->_helper->json($activity);
+    }
+
+
+    /**
      * get list of user todos
      */
     public function getUserTodosAction()
@@ -354,6 +387,39 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
             }
         } else {
             $todo = array('message' => 'todo_type is mandatory field for this request!');
+        }
+
+        $this->_helper->json($todo);
+    }
+
+
+    /**
+     * this action updates user todos by todo_id
+     * todo_type is mandatory field
+     * text is optional field
+     */
+    public function updateUserTodoAction()
+    {
+        $data = $this->getRequestData();
+        if (isset($data['todo_id'])) {
+            $todo = Object_Todo::getById($data['todo_id']);
+            if (!$todo) {
+                $todo = array('message' => 'no Todo with this todo_id!');
+            } elseif ($this->getDeviceSession()->getUserId() != $todo->Creator->o_id) {
+                $todo = array('message' => 'you have no rights to change this Todo!');
+            } else {
+                if (isset($data['todo_type'])) {
+                    $todo->Todo_type = $data['todo_type'];
+                }
+                if (isset($data['text'])) {
+                    $todo->Text = $data['text'];
+                }
+                if (!$todo->save()) {
+                    $todo = array('message' => 'cannot update Todo object');
+                }
+            }
+        } else {
+            $todo = array('message' => 'activity_id is mandatory field for this request!');
         }
 
         $this->_helper->json($todo);
@@ -455,6 +521,52 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
             }
         } else {
             $operation = array('message' => 'title and activity_id is mandatory field for this request!');
+        }
+
+        $this->_helper->json($operation);
+    }
+
+
+    /**
+     * this action updates user operation by operation_id
+     * title and activity_id is mandatory field
+     * explanation, photo, video, latitude, longtitude is optional field
+     */
+    public function updateUserOperationAction()
+    {
+        $data = $this->getRequestData();
+        if (isset($data['operation_id'])) {
+            $operation = Object_Operation::getById($data['operation_id']);
+            if (!$operation) {
+                $operation = array('message' => 'no Operation with this operation_id!');
+            } elseif ($this->getDeviceSession()->getUserId() != $operation->Creator->o_id) {
+                $operation = array('message' => 'you have no rights to change this Todo!');
+            } else {
+                if (isset($data['title'])) {
+                    $operation->Title = $data['title'];
+                }
+                if (isset($data['explanation'])) {
+                    $operation->Explanation = $data['explanation'];
+                }
+                if (isset($data['photo'])) {
+                    $operation->Photo = Asset_Image::getById($data['photo']);
+                }
+                if (isset($data['video'])) {
+                    $operation->Video = Asset_Video::getById($data['video']);
+                }
+                if (isset($data['latitude']) && isset($data['longtitude'])) {
+                    $geo = new Object_Data_Geopoint($data['longtitude'], $data['latitude']);
+                    $operation->Location = $geo;
+                }
+                if (isset($data['activity_id'])) {
+                    $operation->Activity = Object_Activity::getById($data['activity_id']);
+                }
+                if (!$operation->save()) {
+                    $operation = array('message' => 'cannot update Operation object');
+                }
+            }
+        } else {
+            $operation = array('message' => 'operation_id is mandatory field for this request!');
         }
 
         $this->_helper->json($operation);
@@ -565,6 +677,63 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
 
 
     /**
+     * this action updates user agenda by agenda_id
+     * topic and title is mandatory field
+     * notes, start_time, end_time, with_whom, people, location, alarm, repeat_days is optional field
+     */
+    public function updateUserAgendaAction()
+    {
+        $data = $this->getRequestData();
+        if (isset($data['agenda_id'])) {
+            $agenda = Object_Agenda::getById($data['agenda_id']);
+            if (!$agenda) {
+                $agenda = array('message' => 'no Agenda with this agenda_id!');
+            } elseif ($this->getDeviceSession()->getUserId() != $agenda->Creator->o_id) {
+                $agenda = array('message' => 'you have no rights to change this Agenda!');
+            } else {
+                if (isset($data['topic'])) {
+                    $agenda->Topic = $data['topic'];
+                }
+                if (isset($data['title'])) {
+                    $agenda->Title = $data['title'];
+                }
+                if (isset($data['notes'])) {
+                    $agenda->Notes = $data['notes'];
+                }
+                if (isset($data['start_time'])) {
+                    $agenda->Start_time = $data['start_time'];
+                }
+                if (isset($data['end_time'])) {
+                    $agenda->End_time = $data['end_time'];
+                }
+                if (isset($data['with_whom'])) {
+                    $agenda->With_whom = $data['with_whom'];
+                }
+                if (isset($data['with_people'])) {
+                    $agenda->With_people = Object_People::getById($data['with_people']);
+                }
+                if (isset($data['location'])) {
+                    $agenda->Location = $data['location'];
+                }
+                if (isset($data['alarm'])) {
+                    $agenda->Alarm = $data['alarm'];
+                }
+                if (isset($data['repeat_days'])) {
+                    $agenda->Repeat_days = $data['repeat_days'];
+                }
+                if (!$agenda->save()) {
+                    $agenda = array('message' => 'cannot update Agenda object');
+                }
+            }
+        } else {
+            $agenda = array('message' => 'agenda_id is mandatory field for this request!');
+        }
+
+        $this->_helper->json($agenda);
+    }
+
+
+    /**
      * get list of user peoples
      */
     public function getUserPeoplesAction()
@@ -654,6 +823,48 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
             }
         } else {
             $people = array('message' => 'name is mandatory field for this request!');
+        }
+
+        $this->_helper->json($people);
+    }
+
+
+    /**
+     * this action updates user people by people_id
+     * name is mandatory field
+     * company, phone, email, image is optional field
+     */
+    public function updateUserPeopleAction()
+    {
+        $data = $this->getRequestData();
+        if (isset($data['people_id'])) {
+            $people = Object_People::getById($data['people_id']);
+            if (!$people) {
+                $people = array('message' => 'no People with this people_id!');
+            } elseif ($this->getDeviceSession()->getUserId() != $people->Creator->o_id) {
+                $people = array('message' => 'you have no rights to change this People!');
+            } else {
+                if (isset($data['name'])) {
+                    $people->Name = $data['name'];
+                }
+                if (isset($data['company'])) {
+                    $people->Company = $data['company'];
+                }
+                if (isset($data['phone'])) {
+                    $people->Phone = $data['phone'];
+                }
+                if (isset($data['email'])) {
+                    $people->Email = $data['email'];
+                }
+                if (isset($data['image'])) {
+                    $people->Image = Asset_Image::getById($data['image']);
+                }
+                if (!$people->save()) {
+                    $people = array('message' => 'cannot update People object');
+                }
+            }
+        } else {
+            $people = array('message' => 'people_id is mandatory field for this request!');
         }
 
         $this->_helper->json($people);
