@@ -16,7 +16,7 @@ class Workapp_Session extends Pimcore_Model_Abstract
     /**
      * @var
      */
-    protected $device_uid;
+    protected $session_uid;
     /**
      * @var
      */
@@ -29,6 +29,10 @@ class Workapp_Session extends Pimcore_Model_Abstract
      * @var
      */
     protected $last_action_ip;
+    /**
+     * @var
+     */
+    protected $device_token;
 
 
     /**
@@ -49,6 +53,7 @@ class Workapp_Session extends Pimcore_Model_Abstract
 
         $session = new self;
         $session->setUserId($user->getId());
+        $session->setSessionUid(md5(uniqid()));
         $session->setCreatedDate(Zend_Date::now());
         $session->setLastActionDate(Zend_Date::now());
 
@@ -57,15 +62,15 @@ class Workapp_Session extends Pimcore_Model_Abstract
 
 
     /**
-     * Returns a session by device_uid if one exists
-     * @param $deviceUid
+     * Returns a session by session_uid if one exists
+     * @param $sessionUid
      * @return bool|Workapp_Session
      */
-    public static function getByDeviceUid($deviceUid)
+    public static function getBySessionUid($sessionUid)
     {
         $session = new self;
         try {
-            $session->getResource()->getByDeviceUid($deviceUid);
+            $session->getResource()->getBySessionUid($sessionUid);
         } catch (Zend_Exception $e) {
             return false;
         }
@@ -158,22 +163,6 @@ class Workapp_Session extends Pimcore_Model_Abstract
     }
 
     /**
-     * @param mixed $device_uid
-     */
-    public function setDeviceUid($device_uid)
-    {
-        $this->device_uid = $device_uid;
-    }
-
-    /**
-     * @return mixed
-     */
-    public function getDeviceUid()
-    {
-        return $this->device_uid;
-    }
-
-    /**
      * @param mixed $id
      */
     public function setId($id)
@@ -236,6 +225,39 @@ class Workapp_Session extends Pimcore_Model_Abstract
     {
         return $this->user_id;
     }
+
+    /**
+     * @param mixed $device_token
+     */
+    public function setDeviceToken($device_token)
+    {
+        $this->device_token = $device_token;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getDeviceToken()
+    {
+        return $this->device_token;
+    }
+
+    /**
+     * @param mixed $session_uid
+     */
+    public function setSessionUid($session_uid)
+    {
+        $this->session_uid = $session_uid;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getSessionUid()
+    {
+        return $this->session_uid;
+    }
+
 
 
 }

@@ -3,7 +3,7 @@
 /**
  * Class Workapp_ServicesController
  */
-class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
+class Workapp_ServicesController extends Pimcore_Controller_Action
 {
     /**
      * Called before actually calling any action of controller
@@ -14,7 +14,6 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
         parent::postDispatch();
 
         $this->getRequestData();
-        $this->getDeviceSession();
     }
 
     /**
@@ -54,10 +53,11 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
     /**
      * Retrieves session of this device if one exists
      * Remember that device_uid is mandatory field of request payload. Of it is absent, error is always shown!
+     * @param bool
      * @return bool|Workapp_Session
      * @throws Zend_Exception
      */
-    protected function getDeviceSession()
+    protected function getDeviceSession($sessionRequired = false)
     {
         if ($this->session) {
             return $this->session;
@@ -65,17 +65,15 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
 
         $data = $this->getRequestData();
 
-        if (!isset($data['device_uid'])) {
-            $this->setErrorResponse('device_uid is absolutely mandatory field for any request!', 400);
+        if (!isset($data['session_uid']) && $sessionRequired) {
+            $this->setErrorResponse('session_uid is mandatory for this request!', 400);
         }
 
-        $session = Workapp_Session::getByDeviceUid($data['device_uid']);
+        $session = Workapp_Session::getBySessionUid($data['session_uid']);
         if ($session) {
             $session->registerAction($_SERVER['REMOTE_ADDR']);
-        } else {
-            $this->_helper->json(array(
-                'message' => 'This device has no running session'
-            ));
+        } else if ($sessionRequired) {
+            $this->setErrorResponse('This device has no running session which is required by service', 402);
         }
 
         $this->session = $session;
@@ -112,12 +110,9 @@ class Workapp_ServicesController extends Pimcore_Controller_Action_Admin
             $this->setErrorResponse('No user with such username and password');
         }
 
-        $session->setDeviceUid($data['device_uid']);
         $session->registerAction($_SERVER['REMOTE_ADDR']);
 
-        $user = $session->getUser();
-
-        $this->_helper->json($user);
+        $this->_helper->json(array('session_uid' => $session->getSessionUid()));
     }
 
 
