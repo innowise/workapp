@@ -74,7 +74,6 @@ class Workapp_Session extends Pimcore_Model_Abstract
         } catch (Zend_Exception $e) {
             return false;
         }
-
         return $session;
     }
 
@@ -98,6 +97,12 @@ class Workapp_Session extends Pimcore_Model_Abstract
     {
         $this->setLastActionDate(Zend_Date::now());
         $this->setLastActionIp($ip);
+        $this->save();
+    }
+
+
+    public function addDeviceToken($token){
+        $this->setDeviceToken($token);
         $this->save();
     }
 

@@ -1039,4 +1039,17 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
         }
         $this->_helper->json($user);
     }
+
+
+    public function setDeviceTokenAction(){ //not works for now
+        $data = $this->getRequestData();
+        $this->getDeviceSession()->getUserId();
+        if($data['device_token']){
+            $session = new Workapp_Session();
+            $session->addDeviceToken($data['device_token']);
+        } else {
+            $this->setErrorResponse('device_token is mandatory field for this request!');
+        }
+        $this->_helper->json(array('added' => true));
+    }
 }
