@@ -57,7 +57,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
      * @return bool|Workapp_Session
      * @throws Zend_Exception
      */
-    protected function getDeviceSession($sessionRequired = false)
+    protected function getDeviceSession($sessionRequired = true)
     {
         if ($this->session) {
             return $this->session;
@@ -87,7 +87,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
      */
     public function proxyAction()
     {
-        $action = $this->getParam('action');
+        $action = $this->getParam('call');
         $this->forward($action);
     }
 
@@ -99,19 +99,14 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
     public function loginAction()
     {
         $data = $this->getRequestData();
-
-        if ($this->getDeviceSession()) {
+        if ($this->getDeviceSession(false)) {
             $this->setErrorResponse('Your device is already running a session. Please logout first.', 400);
         }
-
         $session = Workapp_Session::login($data['username'], $data['password']);
-
         if (!$session) {
             $this->setErrorResponse('No user with such username and password');
         }
-
         $session->registerAction($_SERVER['REMOTE_ADDR']);
-
         $this->_helper->json(array('session_uid' => $session->getSessionUid()));
     }
 
@@ -165,7 +160,6 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
         if (isset($data['getoperations'])) {
             $getOperations = $data['getoperations'];
         }
-
         $this->_helper->json($activity->getActivityList(array('user_id' => $this->getDeviceSession()->getUserId(), 'getoperations' => $getOperations)));
     }
 

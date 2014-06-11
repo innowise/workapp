@@ -21,9 +21,7 @@ class Workapp_Session_Resource extends Pimcore_Model_Resource_Abstract
     public function save()
     {
         $buffer = array();
-
         $validColumns = $this->getValidTableColumns($this->tableName);
-
         foreach ($validColumns as $column) {
             if (method_exists($this->model, 'get' . ucfirst(preg_replace_callback('/_[a-z]?/', function ($matches) {
                     return strtoupper(ltrim($matches[0], "_"));
@@ -40,8 +38,12 @@ class Workapp_Session_Resource extends Pimcore_Model_Resource_Abstract
             }
         }
 
-        if ($this->model->getId() !== null) {
-            $this->db->update($this->tableName, $buffer, $this->db->quoteInto("id = ?", $this->model->getId()));
+        //if ($this->model->getId() !== null) {
+        $sessionId = $this->userHasSession();
+        if($sessionId){
+            //$this->db->update($this->tableName, $buffer, $this->db->quoteInto("id = ?", $this->model->getId()));
+            $buffer['id'] = $sessionId; 
+            $this->db->update($this->tableName, $buffer, $this->db->quoteInto("id = ?", $sessionId));
             return;
         }
 
@@ -68,4 +70,12 @@ class Workapp_Session_Resource extends Pimcore_Model_Resource_Abstract
         $this->assignVariablesToModel($data);
     }
 
+
+    public function userHasSession(){
+        $data = $this->db->fetchRow('SELECT * FROM ' . $this->tableName . ' WHERE user_id = ?', $this->model->getUserId());
+        if(isset($data['id'])){
+            return $data['id'];
+        }
+        return false;
+    }
 } 
