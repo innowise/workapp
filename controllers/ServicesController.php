@@ -1022,6 +1022,31 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
 
 
     /**
+     * this method allows user to get sick history, or sick for each day
+     * date is optional field for this request
+     */
+    public function getSickAction(){
+        /** @var Object_User $user */
+        $data = $this->getRequestData();
+        $user = Object_User::getById($this->getDeviceSession()->getUserId());
+        $sickArr = $user->getSick_history();
+        if(isset($sickArr[0])){
+            unset($sickArr[0]);
+        }
+        if(isset($data['date'])){
+            foreach($sickArr as $sick){
+                if($sick[0] == $data['date']){
+                    $this->_helper->json($sick);
+                } else {
+                    $this->setErrorResponse('No sick for this day!');
+                }
+            }
+        }
+        $this->_helper->json($sickArr);
+    }
+
+
+    /**
      * this method allows user to report mood
      * mood is mandatory field
      */
@@ -1045,6 +1070,30 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
         }
 
         $this->_helper->json(array('added' => true));
+    }
+
+
+    /**
+     * this method allows user to get mood history, or mood for each day
+     * date is optional field for this request
+     */
+    public function getMoodAction(){
+        $data = $this->getRequestData();
+        $user = Object_User::getById($this->getDeviceSession()->getUserId());
+        $moodArr = $user->getMoodmeter();
+        if(isset($moodArr[0])){
+            unset($moodArr[0]);
+        }
+        if(isset($data['date'])){
+            foreach($moodArr as $mood){
+                if($mood[0] == $data['date']){
+                    $this->_helper->json($mood);
+                } else {
+                    $this->setErrorResponse('No mood for this day!');
+                }
+            }
+        }
+        $this->_helper->json($moodArr);
     }
 
 
