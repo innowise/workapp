@@ -116,7 +116,10 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
      */
     public function logoutAction()
     {
-        $this->_helper->json($this->getDeviceSession()->getUser());
+        $session = new Workapp_Session();
+        $devSession = $this->getDeviceSession(true);
+        $session->logoutAction($devSession->getId(), $devSession->getUserId());
+        $this->_helper->json(array('logout' => true));
     }
 
 
@@ -1053,7 +1056,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
     public function reportMoodAction(){
         /** @var Object_User $user */
         $data = $this->getRequestData();
-        if(isset($data['mood'])){
+        if(isset($data['mood']) && in_array($data['mood'], range(1,3))){
             $user = Object_User::getById($this->getDeviceSession()->getUserId());
             $moodArr = $user->getMoodmeter()?$user->getMoodmeter():array(array('Date', 'Text', 'Mood'));
             $mood = array();
@@ -1066,7 +1069,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
                 $this->setErrorResponse('Cannot update User object');
             }
         } else {
-            $this->setErrorResponse('Please, report your mood. mood is mandatory field!');
+            $this->setErrorResponse('Please, report your mood. mood is mandatory field! Mood should be between 1 and 3');
         }
 
         $this->_helper->json(array('added' => true));
@@ -1140,6 +1143,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
         } else {
             $this->setErrorResponse('password and repeat_password is mandatory fields!');
         }
+        $this->_helper->json(array('updated' => true));
     }
 
 

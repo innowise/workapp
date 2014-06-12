@@ -102,6 +102,15 @@ class Workapp_Session extends Pimcore_Model_Abstract
 
 
     /**
+     * @param $sessionId
+     * @param $userId
+     */
+    public function logoutAction($sessionId, $userId){
+        $this->getResource()->logout($sessionId, $userId);
+    }
+
+
+    /**
      * Call this method whenever you want to update device_token
      * @param $token
      */
