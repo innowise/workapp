@@ -38,15 +38,10 @@ class Workapp_Session_Resource extends Pimcore_Model_Resource_Abstract
             }
         }
 
-        //if ($this->model->getId() !== null) {
-        $sessionId = $this->userHasSession();
-        if($sessionId){
-            //$this->db->update($this->tableName, $buffer, $this->db->quoteInto("id = ?", $this->model->getId()));
-            $buffer['id'] = $sessionId; 
-            $this->db->update($this->tableName, $buffer, $this->db->quoteInto("id = ?", $sessionId));
+        if ($this->model->getId() !== null) {
+            $this->db->update($this->tableName, $buffer, $this->db->quoteInto("id = ?", $this->model->getId()));
             return;
         }
-
         $this->db->insert($this->tableName, $buffer);
         $this->model->setId($this->db->lastInsertId());
     }
@@ -68,14 +63,5 @@ class Workapp_Session_Resource extends Pimcore_Model_Resource_Abstract
         }
 
         $this->assignVariablesToModel($data);
-    }
-
-
-    public function userHasSession(){
-        $data = $this->db->fetchRow('SELECT * FROM ' . $this->tableName . ' WHERE user_id = ?', $this->model->getUserId());
-        if(isset($data['id'])){
-            return $data['id'];
-        }
-        return false;
     }
 } 

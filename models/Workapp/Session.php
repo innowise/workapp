@@ -101,6 +101,10 @@ class Workapp_Session extends Pimcore_Model_Abstract
     }
 
 
+    /**
+     * Call this method whenever you want to update device_token
+     * @param $token
+     */
     public function addDeviceToken($token){
         $this->setDeviceToken($token);
         $this->save();

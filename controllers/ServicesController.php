@@ -139,6 +139,11 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
     }
 
 
+    /**
+     * This method allows to set error message
+     * @param $message
+     * @param int $errorCode
+     */
     private function setErrorResponse($message, $errorCode = 404)
     {
         $this->_response->setHttpResponseCode($errorCode);
@@ -296,6 +301,10 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
     }
 
 
+    /**
+     * this methos allows user to add photo to objects
+     * ['photo']['name'], ['photo']['content'] and type is mandatory fields
+     */
     public function addPhotoAction(){
         $data = $this->getRequestData();
         $types = array('activity', 'operation', 'people');
@@ -338,6 +347,10 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
     }
 
 
+    /**
+     * this methos allows user to add video to operation object
+     * ['video']['name'], ['video']['content'] is mandatory fields
+     */
     public function addVideoAction(){
         $data = $this->getRequestData();
         if(isset($data['video']['name']) && isset($data['video']['content'])){
@@ -497,8 +510,12 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
     }
 
 
+    /**
+     * this method gets todos type list
+     */
     public function getTodoTypeListAction(){
         /** @var Object_Todo $todo */
+        $this->getDeviceSession()->getUserId();
         $todo = new Object_Todo();
         $this->_helper->json($todo->getClass()->getFieldDefinition('Todo_type'));
     }
@@ -815,15 +832,23 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
     }
 
 
+    /**
+     * this method gets topic type list
+     */
     public function getAgendaTopicTypeListAction(){
         /** @var Object_Agenda $agenda */
+        $this->getDeviceSession()->getUserId();
         $agenda = new Object_Agenda();
         $this->_helper->json($agenda->getClass()->getFieldDefinition('Topic'));
     }
 
 
+    /**
+     * this method gets agenda alarm list
+     */
     public function getAgendaAlarmListAction(){
         /** @var Object_Agenda $agenda */
+        $this->getDeviceSession()->getUserId();
         $agenda = new Object_Agenda();
         $this->_helper->json($agenda->getClass()->getFieldDefinition('Alarm'));
     }
@@ -968,6 +993,10 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
     }
 
 
+    /**
+     * this method allows user to report sick
+     * history and already_sick is mandatory fields
+     */
     public function reportSickAction(){
         /** @var Object_User $user */
         $data = $this->getRequestData();
@@ -992,6 +1021,10 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
     }
 
 
+    /**
+     * this method allows user to report mood
+     * mood is mandatory field
+     */
     public function reportMoodAction(){
         /** @var Object_User $user */
         $data = $this->getRequestData();
@@ -1015,6 +1048,10 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
     }
 
 
+    /**
+     * this method allows user to get his profile or update
+     * phone, email, workphone, workemail is optional fields
+     */
     public function profileAction(){
         /** @var Object_User $user */
         $data = $this->getRequestData();
@@ -1031,9 +1068,6 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
         if(isset($data['workemail'])){
             $user->setWorkEmail($data['workemail']);
         }
-        if(isset($data['password'])){
-            $user->setPassword($data['password']);
-        }
         if(!$user->save()){
             $this->setErrorResponse('Cannot update user profile');
         }
@@ -1041,12 +1075,39 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
     }
 
 
-    public function setDeviceTokenAction(){ //not works for now
+    /**
+     * this method changes password for user
+     * password and repeat_password is mandatory fields
+     */
+    public function changePasswordAction(){
+        $data = $this->getRequestData();
+        $user = Object_User::getById($this->getDeviceSession()->getUserId());
+        if(isset($data['password']) && isset($data['repeat_password'])){
+            if($data['password'] === $data['repeat_password']){
+                $user->setPassword($data['password']);
+            } else {
+                $this->setErrorResponse('password and repeat_password should match!');
+            }
+        } else {
+            $this->setErrorResponse('password and repeat_password is mandatory fields!');
+        }
+    }
+
+
+    /**
+     * this method allows user to set his device_token
+     * device_token is mandatory field
+     */
+    public function setDeviceTokenAction(){
         $data = $this->getRequestData();
         $this->getDeviceSession()->getUserId();
         if($data['device_token']){
-            $session = new Workapp_Session();
-            $session->addDeviceToken($data['device_token']);
+            $session = Workapp_Session::getBySessionUid($data['session_uid']);
+            if ($session) {
+                $session->addDeviceToken($data['device_token']);
+            } else {
+                $this->setErrorResponse('This device has no running session which is required by service', 402);
+            }
         } else {
             $this->setErrorResponse('device_token is mandatory field for this request!');
         }
