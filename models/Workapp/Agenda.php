@@ -14,6 +14,7 @@ class Workapp_Agenda extends Pimcore_Model_Abstract
     public function getAgendaList($options)
     {
         $agendas = new Object_Agenda_List();
+        $ags = array();
         if (isset($options['user_id'])) {
             $agendas->setCondition('Creator__id = ?', array($options['user_id']));
         }

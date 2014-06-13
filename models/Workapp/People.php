@@ -14,6 +14,7 @@ class Workapp_People extends Pimcore_Model_Abstract
     public function getPeopleList($options)
     {
         $peoples = new Object_People_List();
+        $ps = array();
         if (isset($options['user_id'])) {
             $peoples->setCondition('Creator__id = ?', array($options['user_id']));
         }

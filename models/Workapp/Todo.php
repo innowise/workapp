@@ -14,6 +14,7 @@ class Workapp_Todo extends Pimcore_Model_Abstract
     public function getTodoList($options)
     {
         $todos = new Object_Todo_List();
+        $tods = array();
         if (isset($options['user_id'])) {
             $todos->setCondition('Creator__id = ?', array($options['user_id']));
         }

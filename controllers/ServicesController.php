@@ -182,6 +182,10 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
         $data = $this->getRequestData();
         if (isset($data['activity_id'])) {
             $activity = Object_Activity::getById($data['activity_id']);
+            if(isset($data['getoperations']) && $activity){
+                $operation = new Workapp_Activity();
+                $activity->operations = $operation->getActivityRequiredByOperations($activity);
+            }
             if (!$activity) {
                 $this->setErrorResponse('no Activity with this activity_id!');
             } elseif ($this->getDeviceSession()->getUserId() != $activity->getCreator()->getId()) {
