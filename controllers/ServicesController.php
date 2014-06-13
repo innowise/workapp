@@ -41,7 +41,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
         try {
             $data = Zend_Json::decode($body);
         } catch (Zend_Exception $e) {
-            $this->setErrorResponse('Broken JSON provided with request', 400);
+            $this->setErrorResponse('Broken JSON provided with request');
         }
 
         $this->requestData = $data;
@@ -66,14 +66,14 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
         $data = $this->getRequestData();
 
         if (!isset($data['session_uid']) && $sessionRequired) {
-            $this->setErrorResponse('session_uid is mandatory for this request!', 400);
+            $this->setErrorResponse('session_uid is mandatory for this request!');
         }
 
         $session = Workapp_Session::getBySessionUid($data['session_uid']);
         if ($session) {
             $session->registerAction($_SERVER['REMOTE_ADDR']);
         } else if ($sessionRequired) {
-            $this->setErrorResponse('This device has no running session which is required by service', 402);
+            $this->setErrorResponse('This device has no running session which is required by service');
         }
 
         $this->session = $session;
@@ -100,7 +100,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
     {
         $data = $this->getRequestData();
         if ($this->getDeviceSession(false)) {
-            $this->setErrorResponse('Your device is already running a session. Please logout first.', 400);
+            $this->setErrorResponse('Your device is already running a session. Please logout first.');
         }
         $session = Workapp_Session::login($data['username'], $data['password']);
         if (!$session) {
@@ -147,7 +147,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
      * @param $message
      * @param int $errorCode
      */
-    private function setErrorResponse($message, $errorCode = 404)
+    private function setErrorResponse($message, $errorCode = 200)
     {
         $this->_response->setHttpResponseCode($errorCode);
         $this->_helper->json(array(
@@ -1159,7 +1159,7 @@ class Workapp_ServicesController extends Pimcore_Controller_Action
             if ($session) {
                 $session->addDeviceToken($data['device_token']);
             } else {
-                $this->setErrorResponse('This device has no running session which is required by service', 402);
+                $this->setErrorResponse('This device has no running session which is required by service');
             }
         } else {
             $this->setErrorResponse('device_token is mandatory field for this request!');
